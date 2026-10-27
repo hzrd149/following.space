@@ -1,7 +1,7 @@
 // Run against `pnpm build && pnpm preview --port 5188` with `pnpm test:browser`.
 // Uses generated keys, a simulated cache, and simulated relay traffic; no public writes.
 import { chromium } from 'playwright';
-import { finalizeEvent, matchFilters, nsecEncode, npubEncode, naddrEncode } from 'applesauce-core/helpers';
+import { finalizeEvent, matchFilters, nsecEncode, naddrEncode } from 'applesauce-core/helpers';
 import { PrivateKeySigner } from 'applesauce-signers';
 import assert from 'node:assert/strict';
 const base = process.env.BASE_URL || 'http://127.0.0.1:5188';
@@ -22,6 +22,12 @@ page.on('pageerror', (error) => errors.push(error.message));
 await page.exposeFunction('extensionPubkey', () => pubkey);
 await page.exposeFunction('extensionSign', (template) => finalizeEvent(template, key));
 await page.route('https://**', (route) => route.fulfill({ json: { supported_nips: [] }, headers: { 'access-control-allow-origin': '*' } }));
+await page.route('https://ranking.vertexlab.io/**', (route) => route.fulfill({
+  json: route.request().url().endsWith('/.well-known/open-ranking.json')
+    ? { '/search/pubkeys': [{ id: 'global' }] }
+    : { results: [{ pubkey: memberPubkey, rank: 42 }] },
+  headers: { 'access-control-allow-origin': '*' }
+}));
 await page.routeWebSocket(/.*/, (socket) => {
   const requests = new Map(); active.set(socket, requests);
   socket.onMessage((raw) => {
@@ -124,7 +130,7 @@ try {
   assert.ok(deletion.tags.some((tag) => tag[0] === 'a' && tag[1] === `39089:${pubkey}:browser-smoke`));
   await page.getByRole('button', { name: 'Create New Follow Pack', exact: true }).click();
   await page.locator('#name').fill('New Garden');
-  await page.locator('#search').fill(npubEncode(memberPubkey));
+  await page.locator('#search').fill('Garden');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('button', { name: 'Add to List', exact: true }).click();
   await page.getByRole('button', { name: 'Publish Follow Pack', exact: true }).click();

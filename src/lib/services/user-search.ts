@@ -1,15 +1,35 @@
+import { firstValueFrom } from 'rxjs';
 import { decodeProfilePointer } from 'applesauce-core/helpers';
 import { getNostrRuntime } from '../nostr/runtime.client';
 import { requestEvents } from '../nostr/requests';
 import { accounts } from '../nostr/accounts';
+import { searchRankedPubkeys } from './open-ranking';
 import { parseProfile } from '../nostr/protocol/profile';
 export interface UserSearchResult { pubkey: string; relays: string[]; rank: number; name?: string; picture?: string }
 const SEARCH_RELAYS = ['wss://search.nos.today', 'wss://relay.nostr.band', 'wss://relay.noswhere.com'];
-export async function searchUsersByName(query: string, limit = 5, signal?: AbortSignal): Promise<UserSearchResult[]> {
+export async function searchUsersByName(query: string, limit = 5, signal?: AbortSignal, source: 'ranking' | 'relay' = 'ranking'): Promise<UserSearchResult[]> {
   query = query.trim();
   if (!query) return [];
   const runtime = await getNostrRuntime();
   const pointer = /^[0-9a-f]{64}$/i.test(query) ? { pubkey: query } : decodeProfilePointer(query.replace(/^nostr:/, ''));
+  signal?.throwIfAborted();
+  if (!pointer && source === 'ranking') {
+    const ranked = await searchRankedPubkeys(query, limit, signal);
+    signal?.throwIfAborted();
+    if (!ranked.length) return [];
+    const filter = { kinds: [0], authors: ranked.map((result) => result.pubkey) };
+    await runtime.hydrate([filter]);
+    signal?.throwIfAborted();
+    // Metadata is optional: a successful ranking remains usable during relay outages.
+    try {
+      await requestEvents(runtime, filter, [...await firstValueFrom(runtime.relayPolicy.lookupRelays$), ...runtime.relays], signal);
+    } catch { signal?.throwIfAborted(); }
+    signal?.throwIfAborted();
+    return ranked.map((result) => {
+      const profile = parseProfile(runtime.eventStore.getReplaceable(0, result.pubkey));
+      return { ...result, relays: [], name: profile.name, picture: profile.picture };
+    });
+  }
   const filter = pointer ? { kinds: [0], authors: [pointer.pubkey] } : { kinds: [0], search: query, limit: 100 };
   await runtime.hydrate([filter]);
   try { await requestEvents(runtime, filter, pointer ? [...runtime.relays, ...(pointer.relays ?? [])] : SEARCH_RELAYS, signal); }

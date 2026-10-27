@@ -52,6 +52,7 @@
   let coverImageUrl = '';
   let description = '';
   let searchQuery = '';
+  let searchSource: 'ranking' | 'relay' = 'ranking';
   let searching = false;
   let searchResults: UserSearchResult[] = [];
   let selectedEntries: FollowListEntry[] = [];
@@ -171,7 +172,7 @@
     const controller = searchController = new AbortController();
     searching = true; error = ''; searchResults = []; duplicateEntryError = false; noSearchResults = false;
     try {
-      const results = await searchUsersByName(searchQuery, 10, controller.signal);
+      const results = await searchUsersByName(searchQuery, 10, controller.signal, searchSource);
       if (controller.signal.aborted) return;
       searchResults = results.filter((result) => !selectedEntries.some((entry) => entry.pubkey === result.pubkey));
       duplicateEntryError = results.length > 0 && searchResults.length === 0;
@@ -298,13 +299,10 @@
   function handleInputChange() {
     searchController?.abort();
     searching = false;
-    if (searching) {
-      logDebug('Input changed, aborting search.');
-      searching = false;
-      searchResults = []; // Clear results immediately
-      noSearchResults = false;
-      error = ''; // Clear any search error
-    }
+    searchResults = [];
+    noSearchResults = false;
+    duplicateEntryError = false;
+    error = '';
   }
 </script>
 
@@ -449,6 +447,13 @@
         <div class="p-6 border-b">
           <h2 class="text-xl font-medium mb-6">Add Users to Follow Pack</h2>
           
+          <label class="block text-sm mb-3">
+            Search provider
+            <select bind:value={searchSource} on:change={handleInputChange} class="ml-2 border border-strong rounded px-2 py-1">
+              <option value="ranking">Open Ranking (Vertex)</option>
+              <option value="relay">Relay search (fallback)</option>
+            </select>
+          </label>
           <!-- Search field -->
           <div class="mb-4">
             <label for="search" class="block text-sm font-medium text-body mb-1">
