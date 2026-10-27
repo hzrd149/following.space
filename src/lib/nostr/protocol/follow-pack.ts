@@ -49,7 +49,7 @@ export function parseFollowListEvent(event: PackEvent): FollowList | null {
 
         // Get the id from the d tag
         const dTag = event.tags.find(tag => tag[0] === 'd');
-        const id = dTag && dTag[1] ? dTag[1] : event.id;
+        const id = dTag?.[1] ?? '';
 
         // Get the cover image from the image tag
         const imageTag = event.tags.find(tag => tag[0] === 'image');

@@ -1,3 +1,4 @@
+import { packHref } from '../src/lib/nostr/protocol/pack-link';
 import { describe, expect, it } from 'vitest';
 import { finalizeEvent } from 'applesauce-core/helpers';
 import { readSnapshots, saveSnapshot } from '../src/lib/features/contacts/snapshots';
@@ -34,6 +35,6 @@ describe('preview identity and escaping', () => {
     const meta = previewMeta(pack, 'https://example.com', '/farm.png');
     expect(meta).not.toContain('<script>');
     expect(meta).toContain('&quot;&gt;&lt;script&gt;');
-    expect(meta).toContain(`?p=${pack.pubkey}`);
+    expect(meta).toContain(packHref(pack));
   });
 });

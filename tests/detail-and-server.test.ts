@@ -49,3 +49,32 @@ it.each([false, true])('only reports detail failure without cached data: %s', as
   expect(states.at(-1)?.loading).toBe(false);
   expect(!!states.at(-1)?.error).toBe(!cached);
 });
+
+it('loads the same address through naddr and legacy links, including relay hints', async () => {
+  const { packNaddr } = await import('../src/lib/nostr/protocol/pack-link');
+  const runtime = setup(); const pack = parseFollowListEvent(signedPack())!;
+  const address = packNaddr(pack, ['wss://hint.example']);
+  expect((await loadPack(runtime, address))?.eventId).toBe((await loadPack(runtime, pack.id, pack.pubkey))?.eventId);
+  const states: (string | undefined)[] = [];
+  const sub = observePack(runtime, address).subscribe((state) => states.push(state.pack?.name));
+  stops.push(() => sub.unsubscribe());
+  runtime.eventStore.add(signedPack({ timestamp: pack.createdAt + 1, title: 'Updated naddr pack' }));
+  expect(states.at(-1)).toBe('Updated naddr pack');
+  const targets = vi.mocked(runtime.pool.request).mock.calls[0][0];
+  expect(targets).toContain('wss://hint.example/');
+});
+
+it('loads empty identifiers by naddr and rejects unsupported kinds before relay reads', async () => {
+  const { naddrEncode } = await import('applesauce-core/helpers');
+  const runtime = setup(); const event = signedPack({ identifier: '' });
+  vi.mocked(runtime.pool.request).mockReturnValue(of(event));
+  const address = naddrEncode({ kind: 39089, pubkey: event.pubkey, identifier: '' });
+  expect((await loadPack(runtime, address))?.id).toBe('');
+  vi.mocked(runtime.pool.request).mockClear();
+  const states: { error?: string }[] = [];
+  const sub = observePack(runtime, naddrEncode({ kind: 30023, pubkey: event.pubkey, identifier: 'garden' }))
+    .subscribe((state) => states.push(state));
+  stops.push(() => sub.unsubscribe());
+  expect(states.at(-1)?.error).toBe('Invalid pack address');
+  expect(runtime.pool.request).not.toHaveBeenCalled();
+});

@@ -1,24 +1,15 @@
 <script lang="ts">
-  import { neventEncode } from 'applesauce-core/helpers';
+  import { packNaddr } from '$lib/nostr/protocol/pack-link';
   import { APP_RELAYS } from '$lib/nostr/relay-policy';
   
-  export let eventId: string;
+  export let identifier: string;
   export let pubkey: string;
-  export let kind: number = 39089; // Default kind for follow list
   
   let copied = false;
   
   async function copyEvent() {
-    // Encode a shareable event pointer
-    const nevent = neventEncode({
-      id: eventId,
-      relays: APP_RELAYS,
-      author: pubkey,
-      kind: kind
-    });
-    
-    const nostrLink = `nostr:${nevent}`;
-    
+    const nostrLink = `nostr:${packNaddr({ id: identifier, pubkey }, APP_RELAYS)}`;
+
     // Copy to clipboard using execCommand as fallback
     try {
       // Modern method
@@ -55,12 +46,12 @@
 
 <button 
   on:click={copyEvent} 
-  class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-body bg-muted rounded-full hover:bg-placeholder transition-colors w-[90px]"
-  title="Copy Nostr event link"
+  class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-body bg-muted rounded-full hover:bg-placeholder transition-colors min-w-[110px]"
+  title="Copy Nostr pack link"
 >
   {#if copied}
     <span>Copied!</span>
   {:else}
-    <span>Copy Event</span>
+    <span>Copy Pack Link</span>
   {/if}
 </button> 

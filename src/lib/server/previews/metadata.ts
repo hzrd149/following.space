@@ -1,3 +1,4 @@
+import { packHref } from '../../nostr/protocol/pack-link';
 import { createHash } from 'node:crypto';
 import type { FollowList } from '../../nostr/protocol/follow-pack';
 export function previewKey(pack: FollowList) {
@@ -10,7 +11,7 @@ export function previewMeta(pack: FollowList, origin: string, image: string) {
   const values = {
     'og:title': `Following._ ${pack.name}`, 'og:description': pack.description || `A Nostr Follow Pack with ${pack.entries.length} people`,
     'og:type': 'website', 'og:image': `${origin}${image}`,
-    'og:url': `${origin}/d/${encodeURIComponent(pack.id)}?p=${pack.pubkey}`,
+    'og:url': `${origin}${packHref(pack)}`,
     'twitter:card': 'summary_large_image', 'twitter:title': `Following._ ${pack.name}`,
     'twitter:description': pack.description || 'A Nostr Follow Pack', 'twitter:image': `${origin}${image}`
   };

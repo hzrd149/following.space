@@ -1,7 +1,7 @@
 // Run against `pnpm build && pnpm preview --port 5188` with `pnpm test:browser`.
 // Uses generated keys, a simulated cache, and simulated relay traffic; no public writes.
 import { chromium } from 'playwright';
-import { finalizeEvent, matchFilters, nsecEncode, npubEncode } from 'applesauce-core/helpers';
+import { finalizeEvent, matchFilters, nsecEncode, npubEncode, naddrEncode } from 'applesauce-core/helpers';
 import { PrivateKeySigner } from 'applesauce-signers';
 import assert from 'node:assert/strict';
 const base = process.env.BASE_URL || 'http://127.0.0.1:5188';
@@ -54,8 +54,10 @@ try {
   await page.goto(base);
   await page.getByRole('heading', { name: 'Reactive Garden', exact: true }).waitFor();
   const card = page.getByRole('link').filter({ has: page.getByRole('heading', { name: 'Reactive Garden', exact: true }) });
-  assert.equal(await card.getAttribute('href'), `/d/browser-smoke?p=${pubkey}`);
+  assert.equal(await card.getAttribute('href'), `/d/${naddrEncode({ kind: 39089, pubkey, identifier: "browser-smoke" })}`);
   await card.click();
+  await page.getByRole('heading', { name: 'Reactive Garden', exact: true }).waitFor();
+  await page.goto(`${base}/d/browser-smoke?p=${pubkey}`);
   await page.getByRole('heading', { name: 'Reactive Garden', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Posts', exact: true }).click();
   await page.getByText('<img src=x onerror="window.smokeXss=true">', { exact: false }).waitFor();
@@ -110,6 +112,7 @@ try {
   await page.locator('header .user-menu-container > button').waitFor();
   await page.reload();
   await page.locator('header .user-menu-container > button').waitFor();
+  await page.goto(base);
   await page.getByRole('heading', { name: 'Updated Garden', exact: true }).waitFor();
   await page.getByRole('link').filter({ has: page.getByRole('heading', { name: 'Updated Garden', exact: true }) }).click();
   await page.getByRole('link', { name: 'Edit List', exact: true }).click();

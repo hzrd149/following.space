@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { packHref } from '$lib/nostr/protocol/pack-link';
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { user, followUsers } from '$lib/stores/user';
@@ -47,7 +48,7 @@
   {#if state.loading}<p class="p-8 text-muted-foreground">Loading follow pack…</p>
   {:else if state.candidates.length}
     <h1 class="text-2xl font-bold mb-4">Choose the pack's author</h1>
-    <ul>{#each state.candidates as pack}<li class="p-4"><a class="text-accent underline" href={'/d/' + encodeURIComponent(pack.id) + '?p=' + pack.pubkey}>{pack.name} · {pack.pubkey.slice(0, 16)}…</a></li>{/each}</ul>
+    <ul>{#each state.candidates as pack}<li class="p-4"><a class="text-accent underline" href={packHref(pack)}>{pack.name} · {pack.pubkey.slice(0, 16)}…</a></li>{/each}</ul>
   {:else if !state.pack}
     <h1 class="text-2xl font-bold">Follow Pack Not Found</h1><p class="my-4">{state.error || 'This pack does not exist or has been deleted.'}</p><a href="/" class="btn btn-primary">Back to Home</a>
   {:else}
@@ -59,7 +60,7 @@
       {#if runtime}<ReactiveProfile {runtime} pubkey={pack.pubkey} showName size="sm" />{/if}
     </a>
     <p class="text-sm text-muted-foreground mb-3">{getRelativeTime(pack.createdAt)} · {pack.entries.length} users</p>
-    <div class="flex flex-wrap gap-2 mb-6"><CopyEvent eventId={pack.eventId} pubkey={pack.pubkey} />
+    <div class="flex flex-wrap gap-2 mb-6"><CopyEvent identifier={pack.id} pubkey={pack.pubkey} />
       {#if $user}<button class="btn btn-primary" disabled={followingAll} on:click={followAll}>{followingAll ? 'Following…' : 'Follow All'}</button>{/if}
       {#if $user?.pubkey === pack.pubkey}<a class="btn btn-secondary" href={'/create?edit=' + encodeURIComponent(pack.id) + '&p=' + pack.pubkey}>Edit List</a>{/if}
     </div>
