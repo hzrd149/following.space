@@ -1,4 +1,4 @@
-// Run against `pnpm build && pnpm preview --port 5188` with `pnpm test:browser`.
+// Run against `npm run build && npm run preview -- --port 5188` with `npm run test:browser`.
 // Uses generated keys, a simulated cache, and simulated relay traffic; no public writes.
 import { chromium } from 'playwright';
 import { finalizeEvent, matchFilters, nsecEncode, naddrEncode } from 'applesauce-core/helpers';

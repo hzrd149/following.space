@@ -10,25 +10,39 @@ export interface PackDetailState { pack: FollowList | null; candidates: FollowLi
 export class AmbiguousPackError extends Error {
   constructor(public candidates: FollowList[]) { super('Several authors use this pack identifier. Choose an author.'); }
 }
+function packQuery(value: string, author?: string) {
+  const { identifier, pubkey, relays } = resolvePackLink(value, author);
+  const filter: Filter = { kinds: [FOLLOW_LIST_KIND], '#d': [identifier], ...(pubkey ? { authors: [pubkey] } : {}) };
+  const deletes: Filter = { kinds: [5], '#k': [String(FOLLOW_LIST_KIND)], ...(pubkey ? { authors: [pubkey] } : {}) };
+  return { pubkey, relays, filter, deletes };
+}
+function parsePacks(events: NostrEvent[]) {
+  return events.flatMap((event) => {
+    const pack = parseFollowListEvent(event); return pack ? [pack] : [];
+  });
+}
+async function refreshPack(runtime: NostrRuntime, query: ReturnType<typeof packQuery>, signal?: AbortSignal) {
+  const filters = [query.filter, query.deletes];
+  await runtime.hydrate(filters).catch(() => {});
+  signal?.throwIfAborted();
+  await requestEvents(runtime, filters, normalizeRelays([...runtime.relays, ...query.relays]), signal);
+}
+
 export function observePack(runtime: NostrRuntime, value: string, author?: string) {
   return new Observable<PackDetailState>((observer) => {
-    let location: ReturnType<typeof resolvePackLink>;
-    try { location = resolvePackLink(value, author); } catch {
+    let location: ReturnType<typeof packQuery>;
+    try { location = packQuery(value, author); } catch {
       observer.next({ pack: null, candidates: [], loading: false, error: 'Invalid pack address' }); return;
     }
-    const { identifier, pubkey, relays } = location;
+    const { pubkey, relays, filter, deletes } = location;
     const scope = new Subscription();
     const controller = new AbortController();
-    const filter: Filter = { kinds: [FOLLOW_LIST_KIND], '#d': [identifier], ...(pubkey ? { authors: [pubkey] } : {}) };
-    const deletes: Filter = { kinds: [5], '#k': [String(FOLLOW_LIST_KIND)], ...(pubkey ? { authors: [pubkey] } : {}) };
     let settled = false;
     let warning: string | undefined;
     let current: NostrEvent[] = [];
     const emit = () => {
       if (scope.closed) return;
-      const candidates = current.flatMap((event) => {
-        const pack = parseFollowListEvent(event); return pack ? [pack] : [];
-      });
+      const candidates = parsePacks(current);
       observer.next({ pack: (pubkey || settled) && candidates.length === 1 ? candidates[0] : null,
         candidates: !pubkey && settled && candidates.length > 1 ? candidates : [],
         loading: !settled && (!pubkey || !candidates.length), error: settled && !candidates.length ? warning : undefined });
@@ -40,14 +54,10 @@ export function observePack(runtime: NostrRuntime, value: string, author?: strin
     scope.add(runtime.pool.subscription(runtime.relayPolicy.readRelays$.pipe(map((current) => normalizeRelays([...current, ...relays]))), [filter, deletes].map((f) => ({ ...f, since: boundary }))).subscribe({
       next: (event) => runtime.eventStore.add(event), error: () => {}
     }));
-    void runtime.hydrate([filter, deletes]).catch(() => {}).then(async () => {
-      if (scope.closed) return;
-      try {
-        await requestEvents(runtime, [filter, deletes], normalizeRelays([...runtime.relays, ...relays]), controller.signal);
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        warning = error instanceof Error ? error.message : 'Pack could not be refreshed';
-      }
+    void refreshPack(runtime, location, controller.signal).catch((error) => {
+      warning = error instanceof Error ? error.message : 'Pack could not be refreshed';
+    }).then(() => {
+      if (controller.signal.aborted) return;
       settled = true; emit();
     });
     return () => { scope.unsubscribe(); controller.abort(); };
@@ -55,13 +65,10 @@ export function observePack(runtime: NostrRuntime, value: string, author?: strin
 }
 
 export async function loadPack(runtime: NostrRuntime, value: string, author?: string, signal?: AbortSignal) {
-  const { identifier, pubkey, relays } = resolvePackLink(value, author);
-  const filter: Filter = { kinds: [FOLLOW_LIST_KIND], '#d': [identifier], ...(pubkey ? { authors: [pubkey] } : {}) };
-  await runtime.hydrate([filter]);
-  await requestEvents(runtime, filter, normalizeRelays([...runtime.relays, ...relays]), signal);
-  const packs = runtime.eventStore.getTimeline(filter).flatMap((event) => {
-    const pack = parseFollowListEvent(event); return pack ? [pack] : [];
-  });
+  const query = packQuery(value, author);
+  await refreshPack(runtime, query, signal);
+  const packs = parsePacks(runtime.eventStore.getTimeline(query.filter));
+  const { pubkey } = query;
   if (!pubkey && packs.length > 1) throw new AmbiguousPackError(packs);
   return packs[0] ?? null;
 }

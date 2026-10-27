@@ -1,7 +1,7 @@
 <script lang="ts">
   import { packHref } from '$lib/nostr/protocol/pack-link';
   import { onMount } from 'svelte';
-  import { user, type UserProfile } from '$lib/stores/user';
+  import { user, user$ } from '$lib/stores/user';
   import { getNostrRuntime, peekNostrRuntime } from '$lib/nostr/runtime.client';
   import { goto } from '$app/navigation';
   import type { NostrRuntime } from '$lib/nostr/runtime';
@@ -9,7 +9,7 @@
   import type { FollowList } from '$lib/nostr/protocol/follow-pack';
   import { getRelativeTime } from '$lib/utils/date';
   import ReactiveProfile from '$lib/components/ReactiveProfile.svelte';
-  import { BehaviorSubject, Observable, combineLatest, distinctUntilChanged, map, switchMap } from 'rxjs';
+  import { BehaviorSubject, combineLatest, distinctUntilChanged, map, switchMap } from 'rxjs';
   import { observableReadable } from '$lib/reactivity/readable';
 
   type FilterType = 'none' | 'follows' | 'included' | 'ours';
@@ -39,8 +39,7 @@
   }
 
   function createFeedState(value: NostrRuntime) {
-    const account$ = new Observable<UserProfile | null>((observer) => user.subscribe((current) => observer.next(current)));
-    const state$ = combineLatest([selectedFilter, account$]).pipe(
+    const state$ = combineLatest([selectedFilter, user$]).pipe(
       map(([selected, current]): PackFilter => {
         if (selected === 'none' || !current) return {};
         if (selected === 'included') return { included: [current.pubkey] };

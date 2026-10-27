@@ -44,5 +44,9 @@
 		"rxjs": "7.8.2",
 		"tailwindcss": "^3.3.5",
 		"window.nostrdb.js": "0.7.0"
+	},
+	"allowScripts": {
+		"esbuild@0.25.3": true,
+		"canvas@3.1.0": true
 	}
 }

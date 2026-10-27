@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
-import { combineLatest, Observable, of, Subscription, switchMap, merge, map, distinctUntilChanged, catchError, EMPTY } from 'rxjs';
+import { combineLatest, Observable, of, Subscription, switchMap, merge, map, distinctUntilChanged, catchError, EMPTY, ReplaySubject, shareReplay, startWith } from 'rxjs';
 import { normalizeRelays, eventRelays } from '../nostr/relay-policy';
 import { accountRefreshFailed } from '../nostr/account-refresh';
 import { observeAccountRelays } from '../nostr/account-relays';
@@ -17,8 +17,10 @@ export interface UserProfile {
   pubkey: string; name?: string; picture?: string; about?: string; npub?: string;
   following: Set<string>; relays: Set<string>;
 }
-const userState = writable<UserProfile | null>(null);
-export const user = { subscribe: userState.subscribe };
+const runtime$ = new ReplaySubject<Awaited<ReturnType<typeof getNostrRuntime>>>(1);
+export const user$ = runtime$.pipe(switchMap((runtime) => observeUser(runtime)), startWith(null),
+  shareReplay({ bufferSize: 1, refCount: true }));
+export const user = user$;
 export const userWarning = writable('');
 let userSubscription: Subscription | undefined;
 
@@ -28,7 +30,13 @@ export async function loadUser() {
   if (userSubscription) return;
   const runtime = await getNostrRuntime();
   if (userSubscription) return;
-  userSubscription = accounts.active$.pipe(switchMap((account) => {
+  runtime$.next(runtime);
+  // Keep account discovery active for the application session.
+  userSubscription = user$.subscribe();
+}
+
+function observeUser(runtime: Awaited<ReturnType<typeof getNostrRuntime>>) {
+  return accounts.active$.pipe(switchMap((account) => {
     userWarning.set('');
     if (!account) { runtime.relayPolicy.account$.next({ loading: false }); return of(null); }
     return new Observable<UserProfile>((observer) => {
@@ -74,7 +82,7 @@ export async function loadUser() {
       });
       return () => scope.unsubscribe();
     });
-  })).subscribe((value) => userState.set(value));
+  }));
 }
 export function getFollowSnapshots(): FollowSnapshot[] {
   try { return browser && accounts.active ? readSnapshots(localStorage, accounts.active.pubkey) : []; } catch { return []; }

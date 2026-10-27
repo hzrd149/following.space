@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { searchRankedPubkeys } from '../src/lib/services/open-ranking';
+import { searchRankedPubkeys } from '../src/lib/features/profiles/open-ranking';
 
 const a = 'a'.repeat(64), b = 'b'.repeat(64);
 const discovery = () => Response.json({ '/search/pubkeys': [{ id: 'personal', pov: true }, { id: 'global' }] });

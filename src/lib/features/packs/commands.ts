@@ -1,15 +1,12 @@
-import { getNostrRuntime } from '../nostr/runtime.client';
-import { accounts } from '../nostr/accounts';
-import { initializeSigner } from '../stores/login';
-import { loadPack } from '../features/packs/detail';
-import { FollowPackFactory, packDeletion } from '../features/packs/factory';
-import { publishSigned } from '../nostr/publish';
-import { requestEvents } from '../nostr/requests';
-import type { FollowListEntry } from '../types/follow-list';
+import { getNostrRuntime } from '../../nostr/runtime.client';
+import { accounts } from '../../nostr/accounts';
+import { initializeSigner } from '../../stores/login';
+import { loadPack } from './detail';
+import { FollowPackFactory, packDeletion } from './factory';
+import { publishSigned } from '../../nostr/publish';
+import { requestEvents } from '../../nostr/requests';
+import type { FollowListEntry } from '../../types/follow-list';
 
-export async function getFollowListById(id: string, pubkey?: string, signal?: AbortSignal) {
-  return loadPack(await getNostrRuntime(), id, pubkey, signal);
-}
 export async function publishFollowList(name: string, coverImageUrl: string, entries: FollowListEntry[], id?: string, description?: string, expectedAuthor?: string) {
   await initializeSigner();
   const account = accounts.active;

@@ -5,11 +5,11 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { user } from '$lib/stores/user';
-  import { publishFollowList, getFollowListById, deleteFollowList } from '$lib/services/follow-list.service';
-  import { type UserSearchResult, searchUsersByName } from '$lib/services/user-search';
+  import { publishFollowList, deleteFollowList } from '$lib/features/packs/commands';
+  import { loadPack } from '$lib/features/packs/detail';
+  import { type UserSearchResult, searchUsersByName } from '$lib/features/profiles/user-search';
   import type { FollowListEntry } from '$lib/types/follow-list';
   import PublicKeyDisplay from '$lib/components/PublicKeyDisplay.svelte';
-  import ProfileImage from '$lib/components/ProfileImage.svelte';
   import ReactiveProfile from '$lib/components/ReactiveProfile.svelte';
   import type { NostrRuntime } from '$lib/nostr/runtime';
   import { getNostrRuntime } from '$lib/nostr/runtime.client';
@@ -133,7 +133,7 @@
   // Load an existing list for editing
   async function loadExistingList(id: string, pubkey?: string) {
     try {
-      const list = await getFollowListById(id, pubkey, pageController.signal);
+      const list = await loadPack(await getNostrRuntime(), id, pubkey, pageController.signal);
       if (!list) {
         error = 'Could not find the follow list to edit';
         editMode = false;
@@ -143,13 +143,6 @@
       if (pageController.signal.aborted) return;
       if (!$user || list.pubkey !== $user.pubkey) throw new Error('Only the author can edit this pack');
       listAuthor = list.pubkey;
-      // // Check if the user is the author
-      // if (!$user || $user.pubkey !== list.pubkey) {
-      //   error = 'You are not authorized to edit this follow list';
-      //   editMode = false;
-      //   return;
-      // }
-      
       // Load the list data into the form
       name = list.name;
       coverImageUrl = list.coverImageUrl;
@@ -196,9 +189,7 @@
       ...selectedEntries, 
       {
         pubkey: result.pubkey,
-        relay: result.relays[0] || '',
-        name: result.name,
-        picture: result.picture
+        relay: result.relays[0] || ''
       }
     ];
     
@@ -510,15 +501,9 @@
                 {#each searchResults as result}
                   <li class="p-4 flex items-center justify-between">
                     <div class="flex items-center">
-                      <ProfileImage 
-                        src={result.picture} 
-                        alt={result.name || 'User'} 
-                        size="md" 
-                        classes="mr-3"
-                      />
                       <div>
-                        <div class="flex items-center">
-                          <h4 class="text-lg font-medium text-foreground">{result.name || 'Unknown User'}</h4>
+                        <div class="flex items-center gap-3">
+                          {#if runtime}<ReactiveProfile {runtime} pubkey={result.pubkey} relays={result.relays} showName />{/if}
                           {#if $user?.following?.has(result.pubkey)}
                             <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-success-soft text-success">Following</span>
                           {/if}
@@ -627,6 +612,7 @@
                           disabled={i === 0}
                           class="text-muted-foreground hover:text-accent disabled:opacity-30 disabled:hover:text-muted-foreground focus:outline-none"
                           title="Move up"
+                          aria-label="Move up"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
@@ -638,6 +624,7 @@
                           disabled={i === selectedEntries.length - 1}
                           class="text-muted-foreground hover:text-accent disabled:opacity-30 disabled:hover:text-muted-foreground focus:outline-none"
                           title="Move down"
+                          aria-label="Move down"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 011.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />

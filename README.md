@@ -15,7 +15,7 @@ A minimalistic Nostr application for creating, sharing, and discovering Nostr Fo
 ### Prerequisites
 
 - Node.js 22 or newer
-- pnpm 12 (npm is also supported)
+- npm
 
 ### Installation
 
@@ -29,13 +29,13 @@ cd nostr-follow-packs
 2. Install dependencies:
 
 ```bash
-pnpm install
+npm install
 ```
 
 3. Start the development server:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 4. Open your browser and navigate to `http://localhost:5173`
@@ -45,10 +45,10 @@ pnpm dev
 To create a production version of the app:
 
 ```bash
-pnpm build
+npm run build
 ```
 
-You can preview the production build with `pnpm preview`.
+You can preview the production build with `npm run preview`.
 
 ## How It Works
 
@@ -72,18 +72,18 @@ Server previews use a separate, bounded read-only Applesauce runtime and close i
 ## Checks
 
 ```bash
-pnpm check
-pnpm test
-pnpm build
+npm run check
+npm test
+npm run build
 ```
 
 The controlled browser smoke test uses generated keys and simulated cache/relay responses. It never publishes to public relays:
 
 ```bash
-pnpm exec playwright install chromium
-pnpm preview --host 127.0.0.1 --port 5188
+npx playwright install chromium
+npm run preview -- --host 127.0.0.1 --port 5188
 # In another terminal:
-pnpm test:browser
+npm run test:browser
 ```
 
 Set `BASE_URL` to use another preview URL or `CHROMIUM_EXECUTABLE` to use an existing browser binary. Build before starting the preview. Remote signer integration tests use a real Applesauce provider over an in-memory transport; hardware/extensions and public relay behavior still warrant deployment smoke testing.

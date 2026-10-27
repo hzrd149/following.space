@@ -4,7 +4,8 @@ import { createNostrRuntime } from '../src/lib/nostr/runtime';
 import { loadPack, AmbiguousPackError, observePack } from '../src/lib/features/packs/detail';
 import { renderPreview } from '../src/lib/server/previews/render';
 import { parseFollowListEvent } from '../src/lib/nostr/protocol/follow-pack';
-import { bob, signedPack } from './fixtures';
+import { finalizeEvent } from 'applesauce-core/helpers';
+import { alice, bob, signedPack } from './fixtures';
 const stops: (() => void)[] = [];
 afterEach(() => stops.splice(0).forEach((stop) => stop()));
 function setup() {
@@ -77,4 +78,18 @@ it('loads empty identifiers by naddr and rejects unsupported kinds before relay 
   stops.push(() => sub.unsubscribe());
   expect(states.at(-1)?.error).toBe('Invalid pack address');
   expect(runtime.pool.request).not.toHaveBeenCalled();
+});
+
+it('applies cached deletion events when taking an editor snapshot', async () => {
+  const pack = signedPack();
+  const deletion = finalizeEvent({ kind: 5, created_at: pack.created_at + 1, content: '',
+    tags: [['e', pack.id], ['a', `39089:${pack.pubkey}:garden`], ['k', '39089']] }, alice);
+  const runtime = setup();
+  vi.spyOn(runtime, 'hydrate').mockImplementation(async (filters) => {
+    runtime.eventStore.add(pack);
+    if (filters.some((filter) => filter.kinds?.includes(5))) runtime.eventStore.add(deletion);
+    return 2;
+  });
+  vi.mocked(runtime.pool.request).mockReturnValue(of());
+  expect(await loadPack(runtime, 'garden', pack.pubkey)).toBeNull();
 });
