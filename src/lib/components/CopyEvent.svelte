@@ -1,18 +1,18 @@
 <script lang="ts">
-  import { nip19 } from 'nostr-tools';
-  import { DEFAULT_RELAYS } from '$lib/nostr/ndk';
+  import { neventEncode } from 'applesauce-core/helpers';
+  import { APP_RELAYS } from '$lib/nostr/relay-policy';
   
   export let eventId: string;
   export let pubkey: string;
-  export let kind: number = 30001; // Default kind for follow list
+  export let kind: number = 39089; // Default kind for follow list
   
   let copied = false;
   
-  function copyEvent() {
-    // Generate nevent with nostr-tools
-    const nevent = nip19.neventEncode({
+  async function copyEvent() {
+    // Encode a shareable event pointer
+    const nevent = neventEncode({
       id: eventId,
-      relays: DEFAULT_RELAYS,
+      relays: APP_RELAYS,
       author: pubkey,
       kind: kind
     });
@@ -22,7 +22,7 @@
     // Copy to clipboard using execCommand as fallback
     try {
       // Modern method
-      navigator.clipboard.writeText(nostrLink);
+      await navigator.clipboard.writeText(nostrLink);
       
       // Show copied state
       copied = true;
@@ -55,7 +55,7 @@
 
 <button 
   on:click={copyEvent} 
-  class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors w-[90px]"
+  class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-body bg-muted rounded-full hover:bg-placeholder transition-colors w-[90px]"
   title="Copy Nostr event link"
 >
   {#if copied}
